@@ -36,7 +36,9 @@ func parseSchema(fileName string, funcNamesWithSchemaDefs map[string]bool) (sche
 							schemaDefs[i].FieldName = nameOfField
 
 							// E.g. DataSources often have Filters. Schema definitions seem to have <key=Filter, Value=FunctionName>. Handling that here.
-							if _, isCustomFuncCall := schemaElem.(*ast.KeyValueExpr).Value.(*ast.CallExpr); !isCustomFuncCall {
+							if _, isCustomFuncCall := schemaElem.(*ast.KeyValueExpr).Value.(*ast.CallExpr); isCustomFuncCall {
+								schemaDefs[i].FieldName = fmt.Sprintf("** %s", schemaDefs[i].FieldName)
+							} else {
 								for _, typeInfo := range schemaElem.(*ast.KeyValueExpr).Value.(*ast.CompositeLit).Elts {
 									switch typeInfo.(*ast.KeyValueExpr).Key.(*ast.Ident).Name {
 									case "Type":

@@ -18,12 +18,19 @@ func main() {
 		panic("Could not read source directory")
 	}
 
+	var filesProcessed, filesSkipped int
+
 	for _, file := range files {
 		if file.IsDir() {
 			continue
 		}
 
 		if !isResourceFile(file.Name()) && !isDataSourceFile(file.Name()) {
+			continue
+		}
+
+		if doesFileHaveProblems(file.Name()) {
+			filesSkipped += 1
 			continue
 		}
 
@@ -39,7 +46,10 @@ func main() {
 		}
 
 		fmt.Println()
+		filesProcessed += 1
 	}
+
+	fmt.Printf("Processed file count = %v, Skipped file count = %v\n", filesProcessed, filesSkipped)
 }
 
 // This function basically looks that two functions defined in the provider.go, parses a map to get the list of functions that have schemas defined.
@@ -68,4 +78,24 @@ func isResourceFile(fileName string) bool {
 
 func isDataSourceFile(fileName string) bool {
 	return strings.HasSuffix(fileName, "_data_source.go")
+}
+
+func doesFileHaveProblems(fileName string) bool {
+	problemCode := map[string]bool{
+		"identity_compartment_resource.go":         true,
+		"identity_group_resource.go":               true,
+		"identity_policy_resource.go":              true,
+		"identity_user_resource.go":                true,
+		"load_balancer_backendset_resource.go":     true,
+		"load_balancer_listener_resource.go":       true,
+		"objectstorage_bucket_resource.go":         true,
+		"objectstorage_object_resource.go":         true,
+		"objectstorage_preauthrequest_resource.go": true,
+	}
+
+	if _, ok := problemCode[fileName]; ok {
+		return true
+	}
+
+	return false
 }
