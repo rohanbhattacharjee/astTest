@@ -82,15 +82,13 @@ func isDataSourceFile(fileName string) bool {
 
 func doesFileHaveProblems(fileName string) bool {
 	problemCode := map[string]bool{
-		"identity_compartment_resource.go":         true,
-		"identity_group_resource.go":               true,
-		"identity_policy_resource.go":              true,
-		"identity_user_resource.go":                true,
-		"load_balancer_backendset_resource.go":     true,
-		"load_balancer_listener_resource.go":       true,
-		"objectstorage_bucket_resource.go":         true,
-		"objectstorage_object_resource.go":         true,
-		"objectstorage_preauthrequest_resource.go": true,
+		"identity_compartment_resource.go":         true, // separate variable for schema definition
+		"identity_group_resource.go":               true, // helper function
+		"identity_policy_resource.go":              true, // separate variable for schema definition
+		"identity_user_resource.go":                true, // helper function
+		"objectstorage_bucket_resource.go":         true, // helper function
+		"objectstorage_object_resource.go":         true, // separate fumction
+		"objectstorage_preauthrequest_resource.go": true, // helper function
 	}
 
 	if _, ok := problemCode[fileName]; ok {
