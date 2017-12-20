@@ -7,8 +7,6 @@ import (
 )
 
 func main() {
-	fmt.Println("Analyzing code ...")
-
 	var sourceDir = "/Users/rohabhat/Documents/work/code/go/src/github.com/oracle/terraform-provider-oci/provider"
 
 	var funcNamesWithSchemaDefs = readProviderForFuncNamesWithSchemaDefs(sourceDir)
@@ -18,7 +16,7 @@ func main() {
 		panic("Could not read source directory")
 	}
 
-	var filesProcessed, filesSkipped int
+	var filesProcessed int
 
 	for _, file := range files {
 		if file.IsDir() {
@@ -29,27 +27,17 @@ func main() {
 			continue
 		}
 
-		if doesFileHaveProblems(file.Name()) {
-			filesSkipped += 1
-			continue
-		}
-
 		filePath := fmt.Sprintf("%s/%s", sourceDir, file.Name())
 
 		fmt.Printf("File: %s:\n", file.Name())
 
-		// functionName := "ConsoleHistoryDataDatasource" //"ConsoleHistoryResource"
-		schemaDefs := parseSchema(filePath, funcNamesWithSchemaDefs)
-
-		for _, schemaDef := range schemaDefs {
-			fmt.Printf("\tName: %s Type: %s isRequired: %v isOptional: %v isComputed: %v isForceNew: %v\n", schemaDef.FieldName, schemaDef.DataType, schemaDef.IsRequired, schemaDef.IsOptional, schemaDef.IsComputed, schemaDef.IsForceNew)
-		}
+		printSchema(filePath, funcNamesWithSchemaDefs)
 
 		fmt.Println()
 		filesProcessed += 1
 	}
 
-	fmt.Printf("Processed file count = %v, Skipped file count = %v\n", filesProcessed, filesSkipped)
+	fmt.Printf("Processed file count = %v\n", filesProcessed)
 }
 
 // This function basically looks that two functions defined in the provider.go, parses a map to get the list of functions that have schemas defined.
@@ -78,22 +66,4 @@ func isResourceFile(fileName string) bool {
 
 func isDataSourceFile(fileName string) bool {
 	return strings.HasSuffix(fileName, "_data_source.go")
-}
-
-func doesFileHaveProblems(fileName string) bool {
-	problemCode := map[string]bool{
-		"identity_compartment_resource.go":         true, // separate variable for schema definition
-		"identity_group_resource.go":               true, // helper function
-		"identity_policy_resource.go":              true, // separate variable for schema definition
-		"identity_user_resource.go":                true, // helper function
-		"objectstorage_bucket_resource.go":         true, // helper function
-		"objectstorage_object_resource.go":         true, // separate fumction
-		"objectstorage_preauthrequest_resource.go": true, // helper function
-	}
-
-	if _, ok := problemCode[fileName]; ok {
-		return true
-	}
-
-	return false
 }

@@ -1,6 +1,6 @@
 package main
 
-type SchemaDef struct {
+type SchemaProperties struct {
 	FieldName  string
 	DataType   string
 	IsRequired bool

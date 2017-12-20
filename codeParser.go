@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-func parseSchema(fileName string, funcNamesWithSchemaDefs map[string]bool) (schemaDefs []SchemaDef) {
+func printSchema(fileName string, funcNamesWithSchemaDefs map[string]bool) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, fileName, nil, 0)
 
@@ -24,48 +24,65 @@ func parseSchema(fileName string, funcNamesWithSchemaDefs map[string]bool) (sche
 	for _, decl := range f.Decls {
 		if function, ok := decl.(*ast.FuncDecl); ok {
 			if _, exists := funcNamesWithSchemaDefs[function.Name.String()]; exists {
-				var elements = function.Body.List[0].(*ast.ReturnStmt).Results[0].(*ast.UnaryExpr).X.(*ast.CompositeLit).Elts
+				fmt.Printf("\tFunction name: %s()\n\n", function.Name.String())
 
-				for _, elem := range elements {
-					currElem := elem.(*ast.KeyValueExpr)
-					if currElem.Key.(*ast.Ident).Name == "Schema" {
-						schemaDefs = make([]SchemaDef, len(currElem.Value.(*ast.CompositeLit).Elts))
+				var schemaProperties = parseSchemaFromFunction(function)
 
-						for i, schemaElem := range currElem.Value.(*ast.CompositeLit).Elts {
-							var nameOfField = schemaElem.(*ast.KeyValueExpr).Key.(*ast.BasicLit).Value
-							schemaDefs[i].FieldName = nameOfField
+				for _, property := range schemaProperties {
+					fmt.Printf("\t\tName: %s Type: %s isRequired: %v isOptional: %v isComputed: %v isForceNew: %v\n", property.FieldName, property.DataType, property.IsRequired, property.IsOptional, property.IsComputed, property.IsForceNew)
+				}
 
-							// E.g. DataSources often have Filters. Schema definitions seem to have <key=Filter, Value=FunctionName>. Handling that here.
-							if _, isCompositLit := schemaElem.(*ast.KeyValueExpr).Value.(*ast.CompositeLit); !isCompositLit {
-								schemaDefs[i].FieldName = fmt.Sprintf("** %s", schemaDefs[i].FieldName)
-							} else {
-								for _, typeInfo := range schemaElem.(*ast.KeyValueExpr).Value.(*ast.CompositeLit).Elts {
-									switch typeInfo.(*ast.KeyValueExpr).Key.(*ast.Ident).Name {
-									case "Type":
-										dataTypePart1 := typeInfo.(*ast.KeyValueExpr).Value.(*ast.SelectorExpr).X.(*ast.Ident).Name
-										dataTypePart2 := typeInfo.(*ast.KeyValueExpr).Value.(*ast.SelectorExpr).Sel.Name
-										schemaDefs[i].DataType = fmt.Sprintf("%s.%s", dataTypePart1, dataTypePart2)
+				fmt.Println()
+			}
+		}
+	}
 
-									case "Computed":
-										schemaDefs[i].IsComputed, _ = strconv.ParseBool(typeInfo.(*ast.KeyValueExpr).Value.(*ast.Ident).Name)
+	return
+}
 
-									case "Required":
-										schemaDefs[i].IsRequired, _ = strconv.ParseBool(typeInfo.(*ast.KeyValueExpr).Value.(*ast.Ident).Name)
+func parseSchemaFromFunction(function *ast.FuncDecl) (schemaProperties []SchemaProperties) {
+	var elements = function.Body.List[0].(*ast.ReturnStmt).Results[0].(*ast.UnaryExpr).X.(*ast.CompositeLit).Elts
+	for _, elem := range elements {
+		currElem := elem.(*ast.KeyValueExpr)
+		if currElem.Key.(*ast.Ident).Name == "Schema" {
 
-									case "Optional":
-										schemaDefs[i].IsOptional, _ = strconv.ParseBool(typeInfo.(*ast.KeyValueExpr).Value.(*ast.Ident).Name)
+			schemaProperties = make([]SchemaProperties, len(currElem.Value.(*ast.CompositeLit).Elts))
 
-									case "ForceNew":
-										schemaDefs[i].IsForceNew, _ = strconv.ParseBool(typeInfo.(*ast.KeyValueExpr).Value.(*ast.Ident).Name)
+			for i, schemaElem := range currElem.Value.(*ast.CompositeLit).Elts {
+				var nameOfField = schemaElem.(*ast.KeyValueExpr).Key.(*ast.BasicLit).Value
+				schemaProperties[i].FieldName = nameOfField
 
-									default:
-										fmt.Println("\t****Unknown TypeInfo****")
-										fmt.Printf("\tNameOfSchemaField: %s, Attribute: %s\n", nameOfField, typeInfo.(*ast.KeyValueExpr).Key.(*ast.Ident).Name)
-										fmt.Println("\t*********")
-										fmt.Println()
-									}
-								}
-							}
+				// E.g. DataSources often have Filters. Schema definitions seem to have <key=Filter, Value=FunctionName>. Handling that here.
+				if _, isCompositLit := schemaElem.(*ast.KeyValueExpr).Value.(*ast.CompositeLit); !isCompositLit {
+					fmt.Println("\t\t**** Look at this field ****")
+					fmt.Printf("\t\t%s\n", schemaProperties[i].FieldName)
+					fmt.Println("\t\t*********")
+					fmt.Println()
+				} else {
+					for _, typeInfo := range schemaElem.(*ast.KeyValueExpr).Value.(*ast.CompositeLit).Elts {
+						switch typeInfo.(*ast.KeyValueExpr).Key.(*ast.Ident).Name {
+						case "Type":
+							dataTypePart1 := typeInfo.(*ast.KeyValueExpr).Value.(*ast.SelectorExpr).X.(*ast.Ident).Name
+							dataTypePart2 := typeInfo.(*ast.KeyValueExpr).Value.(*ast.SelectorExpr).Sel.Name
+							schemaProperties[i].DataType = fmt.Sprintf("%s.%s", dataTypePart1, dataTypePart2)
+
+						case "Computed":
+							schemaProperties[i].IsComputed, _ = strconv.ParseBool(typeInfo.(*ast.KeyValueExpr).Value.(*ast.Ident).Name)
+
+						case "Required":
+							schemaProperties[i].IsRequired, _ = strconv.ParseBool(typeInfo.(*ast.KeyValueExpr).Value.(*ast.Ident).Name)
+
+						case "Optional":
+							schemaProperties[i].IsOptional, _ = strconv.ParseBool(typeInfo.(*ast.KeyValueExpr).Value.(*ast.Ident).Name)
+
+						case "ForceNew":
+							schemaProperties[i].IsForceNew, _ = strconv.ParseBool(typeInfo.(*ast.KeyValueExpr).Value.(*ast.Ident).Name)
+
+						default:
+							fmt.Println("\t\t**** Unknown attribute ****")
+							fmt.Printf("\t\tNameOfSchemaField: %s, Attribute: %s\n", nameOfField, typeInfo.(*ast.KeyValueExpr).Key.(*ast.Ident).Name)
+							fmt.Println("\t\t*********")
+							fmt.Println()
 						}
 					}
 				}
