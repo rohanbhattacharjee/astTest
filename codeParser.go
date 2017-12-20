@@ -5,10 +5,11 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"strconv"
 )
 
-func printSchema(fileName string, funcNamesWithSchemaDefs map[string]bool) {
+func writeSchema(fileName string, funcNamesWithSchemaDefs map[string]bool, outputFile *os.File) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, fileName, nil, 0)
 	if err != nil {
@@ -23,15 +24,15 @@ func printSchema(fileName string, funcNamesWithSchemaDefs map[string]bool) {
 	for _, decl := range f.Decls {
 		if function, ok := decl.(*ast.FuncDecl); ok {
 			if _, exists := funcNamesWithSchemaDefs[function.Name.String()]; exists {
-				fmt.Printf("\tFunction name: %s()\n\n", function.Name.String())
+				outputFile.WriteString(fmt.Sprintf("\tFunction name: %s()\n\n", function.Name.String()))
 
-				var schemaProperties = parseSchemaFromFunction(function)
+				var schemaProperties = parseSchemaFromFunction(function, outputFile)
 
 				for _, property := range schemaProperties {
-					fmt.Printf("\t\tName: %s Type: %s isRequired: %v isOptional: %v isComputed: %v isForceNew: %v\n", property.FieldName, property.DataType, property.IsRequired, property.IsOptional, property.IsComputed, property.IsForceNew)
+					outputFile.WriteString(fmt.Sprintf("\t\tName: %s Type: %s isRequired: %v isOptional: %v isComputed: %v isForceNew: %v\n", property.FieldName, property.DataType, property.IsRequired, property.IsOptional, property.IsComputed, property.IsForceNew))
 				}
 
-				fmt.Println()
+				outputFile.WriteString("\n")
 			}
 		}
 	}
@@ -39,8 +40,10 @@ func printSchema(fileName string, funcNamesWithSchemaDefs map[string]bool) {
 	return
 }
 
-func parseSchemaFromFunction(function *ast.FuncDecl) (schemaProperties []SchemaProperties) {
+func parseSchemaFromFunction(function *ast.FuncDecl, outputFile *os.File) (schemaProperties []SchemaProperties) {
+
 	var elements = function.Body.List[0].(*ast.ReturnStmt).Results[0].(*ast.UnaryExpr).X.(*ast.CompositeLit).Elts
+
 	for _, elem := range elements {
 		currElem := elem.(*ast.KeyValueExpr)
 		if currElem.Key.(*ast.Ident).Name == "Schema" {
@@ -53,10 +56,9 @@ func parseSchemaFromFunction(function *ast.FuncDecl) (schemaProperties []SchemaP
 
 				// E.g. DataSources often have Filters. Schema definitions seem to have <key=Filter, Value=FunctionName>. Handling that here.
 				if _, isCompositLit := schemaElem.(*ast.KeyValueExpr).Value.(*ast.CompositeLit); !isCompositLit {
-					fmt.Println("\t\t**** Look at this field ****")
-					fmt.Printf("\t\t%s\n", schemaProperties[i].FieldName)
-					fmt.Println("\t\t*********")
-					fmt.Println()
+					outputFile.WriteString(fmt.Sprintf("\t\t**** Look at this field ****\n"))
+					outputFile.WriteString(fmt.Sprintf("\t\t%s\n", schemaProperties[i].FieldName))
+					outputFile.WriteString(fmt.Sprintf("\t\t*********\n\n"))
 				} else {
 					for _, typeInfo := range schemaElem.(*ast.KeyValueExpr).Value.(*ast.CompositeLit).Elts {
 						switch typeInfo.(*ast.KeyValueExpr).Key.(*ast.Ident).Name {
@@ -78,10 +80,9 @@ func parseSchemaFromFunction(function *ast.FuncDecl) (schemaProperties []SchemaP
 							schemaProperties[i].IsForceNew, _ = strconv.ParseBool(typeInfo.(*ast.KeyValueExpr).Value.(*ast.Ident).Name)
 
 						default:
-							fmt.Println("\t\t**** Unknown attribute ****")
-							fmt.Printf("\t\tNameOfSchemaField: %s, Attribute: %s\n", nameOfField, typeInfo.(*ast.KeyValueExpr).Key.(*ast.Ident).Name)
-							fmt.Println("\t\t*********")
-							fmt.Println()
+							outputFile.WriteString(fmt.Sprintf("\t\t**** Unknown attribute ****\n"))
+							outputFile.WriteString(fmt.Sprintf("\t\tNameOfSchemaField: %s, Attribute: %s\n", nameOfField, typeInfo.(*ast.KeyValueExpr).Key.(*ast.Ident).Name))
+							outputFile.WriteString(fmt.Sprintf("\t\t*********\n\n"))
 						}
 					}
 				}
