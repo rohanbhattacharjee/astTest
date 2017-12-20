@@ -11,7 +11,6 @@ import (
 func printSchema(fileName string, funcNamesWithSchemaDefs map[string]bool) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, fileName, nil, 0)
-
 	if err != nil {
 		panic(err)
 	}
@@ -91,52 +90,4 @@ func parseSchemaFromFunction(function *ast.FuncDecl) (schemaProperties []SchemaP
 	}
 
 	return
-}
-
-func getDataSourceFuncNames(fileName string, functionName string) map[string]bool {
-	funcNames := make(map[string]bool)
-
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, fileName, nil, 0)
-
-	if err != nil {
-		panic(err)
-	}
-
-	for _, decl := range f.Decls {
-		if function, ok := decl.(*ast.FuncDecl); ok && function.Name.String() == functionName {
-			funcMap := function.Body.List[0].(*ast.ReturnStmt).Results[0].(*ast.CompositeLit).Elts
-
-			for _, mapEntry := range funcMap {
-				dataSourceFuncName := mapEntry.(*ast.KeyValueExpr).Value.(*ast.CallExpr).Fun.(*ast.Ident).Name
-				funcNames[dataSourceFuncName] = false
-			}
-		}
-	}
-
-	return funcNames
-}
-
-func getResourceFuncNames(fileName string, functionName string) map[string]bool {
-	funcNames := make(map[string]bool)
-
-	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, fileName, nil, 0)
-
-	if err != nil {
-		panic(err)
-	}
-
-	for _, decl := range f.Decls {
-		if function, ok := decl.(*ast.FuncDecl); ok && function.Name.String() == functionName {
-			funcMap := function.Body.List[0].(*ast.ReturnStmt).Results[0].(*ast.CompositeLit).Elts
-
-			for _, mapEntry := range funcMap {
-				resourceFuncName := mapEntry.(*ast.KeyValueExpr).Value.(*ast.CallExpr).Fun.(*ast.Ident).Name
-				funcNames[resourceFuncName] = false
-			}
-		}
-	}
-
-	return funcNames
 }
